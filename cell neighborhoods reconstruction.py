@@ -1,27 +1,45 @@
-
 import numpy as np
 import os
 import scanpy as sc
-from sklearn.metrics.cluster import adjusted_rand_score
 import pandas as pd
 import random
-import math
 from sklearn.neighbors import NearestNeighbors
 
-dataList = ["Buettner","Chu_celltime", "Chung", "Darmanis", "Deng", "Engel", "Goolam", "Kim", "Koh",
-            "Kolodz", "Kumar", "Leng", "Li", "Maria2", "Pollen", "Robert", "Ting", "Treutlein",
-            "Usoskin", "Yan", "Yeo", "Zhou"]
-medlist = ["CellBRF", "DUBStepR","Feats","FEAST","geneBasisR", "HVG", "HRG"]
+dataList = [
+    "Buettner",
+    "Chu_celltime",
+    "Chung",
+    "Darmanis",
+    "Deng",
+    "Engel",
+    "Goolam",
+    "Kim",
+    "Koh",
+    "Kolodz",
+    "Kumar",
+    "Leng",
+    "Li",
+    "Maria2",
+    "Pollen",
+    "Robert",
+    "Ting",
+    "Treutlein",
+    "Usoskin",
+    "Yan",
+    "Yeo",
+    "Zhou",
+]
+medlist = ["CellBRF", "DUBStepR", "Feats", "FEAST", "geneBasisR", "HVG", "HRG"]
 seed = 2022
 random.seed(seed)
-k=16
+k = 16
 for dataName in dataList:
-    dir = './'
+    dir = "./"
     print(dataName)
-    counts_df = pd.read_csv(os.path.join(dir, dataName + '.csv'))
-    lab_df = pd.read_csv(os.path.join(dir, dataName + '_label.csv'))
+    counts_df = pd.read_csv(os.path.join(dir, dataName + ".csv"))
+    lab_df = pd.read_csv(os.path.join(dir, dataName + "_label.csv"))
     var_names = counts_df.iloc[:, 0].values.tolist()
-    ad = ~pd.Series(var_names).duplicated(keep='first').values
+    ad = ~pd.Series(var_names).duplicated(keep="first").values
     var_names = list(np.array(var_names)[ad])
     lab = lab_df.iloc[:, 1].values.tolist()
     types = np.unique(lab)
@@ -43,12 +61,12 @@ for dataName in dataList:
     for m in medlist:
         print(m)
         if m == "CellBRF":
-            gs = np.loadtxt('./' + dataName + '_CellBRF_gs_res.txt', dtype=str)
+            gs = np.loadtxt("./" + dataName + "_CellBRF_gs_res.txt", dtype=str)
             norm_X = adata[:, gs].X.copy()
         else:
-            gs = np.loadtxt('./' + m + '_' + dataName + '.txt', dtype=str)
+            gs = np.loadtxt("./" + m + "_" + dataName + ".txt", dtype=str)
             if list(set(gs) & set(var_names)) == []:
-                tmp = [i.replace('_', '-') for i in var_names]
+                tmp = [i.replace("_", "-") for i in var_names]
                 gs = list(set(gs) & set(tmp))
                 adata.var_names = tmp
                 norm_X = adata[:, gs].X.copy()
@@ -70,5 +88,4 @@ for dataName in dataList:
             auc_list.append(auc / (norm_X.shape[0] * i))
         auc_mat[m] = auc_list
     print(auc_mat)
-    np.savetxt('./neighbor_auc/' + dataName + '.txt', auc_mat, fmt='%f')
-
+    np.savetxt("./neighbor_auc/" + dataName + ".txt", auc_mat, fmt="%f")

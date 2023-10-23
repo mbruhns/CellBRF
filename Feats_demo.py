@@ -11,9 +11,7 @@ import time
 # Compute Clustering Score
 def ClusteringScore(X, labels):
     s_score = silhouette_samples(X, labels)
-    s_average = np.mean(s_score)
-
-    return s_average
+    return np.mean(s_score)
 
 
 def SelectTopNScores(clustering_score, n):
@@ -21,10 +19,7 @@ def SelectTopNScores(clustering_score, n):
     idx = np.flip(idx)
     # print("s_score array size: ", idx.size)
     # print(clustering_score)
-    if idx.size < n:
-        return idx
-    else:
-        return idx[0:n]
+    return idx if idx.size < n else idx[:n]
 
 
 def normalize(adata):
@@ -38,9 +33,9 @@ def normalize(adata):
 dataList = ["xxx"]
 print(dataList)
 
+dir = "./"
 for dataName in dataList:
     print(dataName)
-    dir = "./"
     # data load
     counts_df = pd.read_csv(os.path.join(dir, dataName + ".csv"), encoding="gbk")
     lab_df = pd.read_csv(os.path.join(dir, dataName + "_label.csv"))
@@ -63,7 +58,7 @@ for dataName in dataList:
     adata.obs_names = obs_names
     adata.var_names = var_names
     n_clusters = len(np.unique(adata.obs["Group"]))
-    print("dataset: %s" % dataName)
+    print(f"dataset: {dataName}")
     print(
         "cells: %d; genes: %d; n clusters: %d"
         % (len(obs_names), len(var_names), n_clusters)
@@ -99,10 +94,10 @@ for dataName in dataList:
     pred_labels = np.zeros([X_nrm.shape[0], q.shape[0]])  # for storing cluster labels
 
     # compute clusters and iterate
-    print("Computing " + str(n_clusters) + " clusters using best features . . .")
+    print(f"Computing {n_clusters} clusters using best features . . .")
     i = 0
     for j in q:
-        X_red = X_nrm[:, idx[0:j]]
+        X_red = X_nrm[:, idx[:j]]
         pred_labels[:, i] = model_hc.fit_predict(X_red) + 1
         clust_score[i] = ClusteringScore(X, pred_labels[:, i])
         i = i + 1
@@ -122,7 +117,7 @@ for dataName in dataList:
     print(">> time used:", runningtime)
     np.savetxt(
         "./Re_sg_res/Feats_" + dataName + ".txt",
-        np.array(adata.var_names)[idx[range(0, int(q[mask]))]],
+        np.array(adata.var_names)[idx[range(int(q[mask]))]],
         fmt="%s",
         delimiter=" ",
     )

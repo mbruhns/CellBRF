@@ -33,8 +33,8 @@ medlist = ["CellBRF", "DUBStepR", "Feats", "FEAST", "geneBasisR", "HVG", "HRG"]
 seed = 2022
 random.seed(seed)
 k = 16
+dir = "./"
 for dataName in dataList:
-    dir = "./"
     print(dataName)
     counts_df = pd.read_csv(os.path.join(dir, dataName + ".csv"))
     lab_df = pd.read_csv(os.path.join(dir, dataName + "_label.csv"))
@@ -44,11 +44,9 @@ for dataName in dataList:
     lab = lab_df.iloc[:, 1].values.tolist()
     types = np.unique(lab)
     y = np.zeros(len(lab))
-    c = 1
-    for t in types:
+    for c, t in enumerate(types, start=1):
         idx = [i for i, j in enumerate(lab) if j == t]
         y[idx] = c
-        c += 1
     X = counts_df.iloc[ad, 1:].values
     n_clusters = len(np.unique(y))
 
@@ -65,7 +63,7 @@ for dataName in dataList:
             norm_X = adata[:, gs].X.copy()
         else:
             gs = np.loadtxt("./" + m + "_" + dataName + ".txt", dtype=str)
-            if list(set(gs) & set(var_names)) == []:
+            if not list(set(gs) & set(var_names)):
                 tmp = [i.replace("_", "-") for i in var_names]
                 gs = list(set(gs) & set(tmp))
                 adata.var_names = tmp

@@ -42,38 +42,28 @@ from gap_statistic import OptimalK
 
 def dopca(X, dim):
     pcaten = PCA(n_components=dim)
-    X_10 = pcaten.fit_transform(X)
-    return X_10
+    return pcaten.fit_transform(X)
 
 
 def get_adj(count, k=15, pca=50, mode="connectivity"):
-    if pca:
-        countp = dopca(count, dim=pca)
-    else:
-        countp = count
+    countp = dopca(count, dim=pca) if pca else count
     A = kneighbors_graph(countp, k, mode=mode, metric="euclidean", include_self=True)
-    adj = A.toarray()
-    return adj
+    return A.toarray()
 
 
 def predict_label(data, k_clusters, pca, seed, k):
     adj = get_adj(count=data, pca=pca, k=k)
-    label_predict = SpectralClustering(
+    return SpectralClustering(
         n_clusters=k_clusters,
         affinity="precomputed",
         assign_labels="discretize",
         random_state=seed,
     ).fit_predict(adj)
-    return label_predict
 
 
 def freq_cal(l, thd):
     counter = Counter(l)
-    gene_idx = []
-    for i in dict(counter):
-        if dict(counter)[i] >= thd:
-            gene_idx.extend([i])
-    return gene_idx
+    return [i for i, value in dict(counter).items() if value >= thd]
 
 
 def filter_bycorr_with_orderly_genes(df, threshold=0.8, gap=0.1):
@@ -105,10 +95,7 @@ def filter_bycorr_with_orderly_genes(df, threshold=0.8, gap=0.1):
 def USSampler(x, y, random_state):
     y = y.astype(int)
     encode = dict(zip(np.unique(y), range(len(np.unique(y)))))
-    tmp_y = []
-    for i in y:
-        tmp_y.append(encode[i])
-
+    tmp_y = [encode[i] for i in y]
     size = math.ceil(x.shape[0] / len(np.unique(tmp_y)))
     resize = []
     for c in np.unique(tmp_y):
@@ -133,10 +120,7 @@ def USSampler(x, y, random_state):
     reshape_x = x[id, :].copy()
 
     decode = dict(zip(range(len(np.unique(y))), np.unique(y)))
-    reshape_y = []
-    for i in tmp_reshape_y:
-        reshape_y.append(decode[i])
-
+    reshape_y = [decode[i] for i in tmp_reshape_y]
     return reshape_x, reshape_y
 
 
@@ -144,9 +128,7 @@ def balance(seq):
     n = len(seq)
     classes = [(clas, float(count)) for clas, count in Counter(seq).items()]
     k = len(classes)
-    H = -sum(
-        [(count / n) * np.log((count / n)) for clas, count in classes]
-    )  # shannon entropy
+    H = -sum((count / n) * np.log((count / n)) for clas, count in classes)
     return 1 - (H / np.log(k))
 
 
@@ -255,13 +237,9 @@ def CellBRF(
         if n_clusters is None:
             optimalK = OptimalK(n_jobs=8, parallel_backend="joblib")
             n_clusters = optimalK(norm_X, cluster_array=np.arange(2, 15))
-            label_predict = predict_label(
-                data=norm_X, k_clusters=n_clusters, seed=seed, pca=pca, k=k
-            )
-        else:
-            label_predict = predict_label(
-                data=norm_X, k_clusters=n_clusters, seed=seed, pca=pca, k=k
-            )
+        label_predict = predict_label(
+            data=norm_X, k_clusters=n_clusters, seed=seed, pca=pca, k=k
+        )
         predict = True
     else:
         predict = False
@@ -298,9 +276,7 @@ def CellBRF(
                         sub = norm_X[tmp_idx, :]
                         center = np.mean(sub, axis=0)
                         pdist = (sub - center) ** 2
-                        sub_id.extend(
-                            tmp_idx[np.argsort(np.mean(pdist, axis=1))[0:num]]
-                        )
+                        sub_id.extend(tmp_idx[np.argsort(np.mean(pdist, axis=1))[:num]])
                     else:
                         sub_id.extend(tmp_idx)
                 sub_norm_X = norm_X[sub_id, :].copy()
@@ -344,46 +320,34 @@ def CellBRF(
                         min_cluster = i[1]
                     diff.append(i[1] - balanced_thd)
                     clusters.append(i[0])
+                resize = []
                 if n_clusters == 2:
-                    resize = []
                     for c in np.unique(sub_lab):
                         idx = list(np.where(sub_lab == c)[0])
                         if len(idx) > balanced_thd:
                             resize.append(len(idx))
                         else:
                             resize.append(balanced_thd)
-                    ratio = dict(zip(np.unique(sub_lab), resize))
-                    if min_cluster < 7:
-                        smo_os = SMOTE(
-                            random_state=seed,
-                            k_neighbors=min_cluster - 1,
-                            sampling_strategy=ratio,
-                        )
-                    else:
-                        smo_os = SMOTE(random_state=seed, sampling_strategy=ratio)
                 else:
                     central_cluster = clusters[
                         np.where(np.abs(diff) == min(np.abs(diff)))[0][0]
                     ]
                     central_idx = list(np.where(sub_lab == central_cluster)[0])
-                    # Over sampling
-                    resize = []
                     for c in np.unique(sub_lab):
                         idx = list(np.where(sub_lab == c)[0])
                         if len(idx) > len(central_idx):
                             resize.append(len(idx))
                         else:
                             resize.append(len(central_idx))
-                    ratio = dict(zip(np.unique(sub_lab), resize))
-                    if min_cluster < 7:
-                        smo_os = SMOTE(
-                            random_state=seed,
-                            k_neighbors=min_cluster - 1,
-                            sampling_strategy=ratio,
-                        )
-                    else:
-                        smo_os = SMOTE(random_state=seed, sampling_strategy=ratio)
-
+                ratio = dict(zip(np.unique(sub_lab), resize))
+                if min_cluster < 7:
+                    smo_os = SMOTE(
+                        random_state=seed,
+                        k_neighbors=min_cluster - 1,
+                        sampling_strategy=ratio,
+                    )
+                else:
+                    smo_os = SMOTE(random_state=seed, sampling_strategy=ratio)
                 tmp_X, tmp_lab = smo_os.fit_resample(sub_norm_X, sub_lab)
                 counter = Counter(tmp_lab)
                 print(">> balanced data size: ", tmp_X.shape)
@@ -421,19 +385,19 @@ def CellBRF(
     if RR:
         if balanced:
             sub_X_selected = pd.DataFrame(
-                data=sub_norm_X[:, np.argsort(-gene_imp)[0:N]],
-                columns=np.argsort(-gene_imp)[0:N],
+                data=sub_norm_X[:, np.argsort(-gene_imp)[:N]],
+                columns=np.argsort(-gene_imp)[:N],
             )
         else:
             sub_X_selected = pd.DataFrame(
-                data=norm_X[:, np.argsort(-gene_imp)[0:N]],
-                columns=np.argsort(-gene_imp)[0:N],
+                data=norm_X[:, np.argsort(-gene_imp)[:N]],
+                columns=np.argsort(-gene_imp)[:N],
             )
         sg = filter_bycorr_with_orderly_genes(
             df=sub_X_selected, threshold=corr_threshold
         )
     else:
-        sg = np.argsort(-gene_imp)[0:N]
+        sg = np.argsort(-gene_imp)[:N]
 
     end = time.time()
     runningtime = end - start
@@ -444,12 +408,11 @@ def CellBRF(
     # Output results
     print(">> saving results ......")
     if dataName is None:
-        if save_full:
-            if balanced:
-                np.savetxt(save_path + "CellBRF_balance_data.txt", tmp_X, fmt="%f")
-                np.savetxt(
-                    save_path + "CellBRF_balance_data_label.txt", tmp_lab, fmt="%d"
-                )
+        if save_full and balanced:
+            np.savetxt(save_path + "CellBRF_balance_data.txt", tmp_X, fmt="%f")
+            np.savetxt(
+                save_path + "CellBRF_balance_data_label.txt", tmp_lab, fmt="%d"
+            )
         np.savetxt(save_path + "CellBRF_filtered_res.txt", X_selected, fmt="%f")
         if predict:
             np.savetxt(save_path + "CellBRF_pred_label.txt", label_predict, fmt="%d")
@@ -459,16 +422,15 @@ def CellBRF(
         if under_sampling:
             np.savetxt(save_path + "CellBRF_subid.txt", sub_id, fmt="%d")
     else:
-        if save_full:
-            if balanced:
-                np.savetxt(
-                    save_path + dataName + "_CellBRF_balance_data.txt", tmp_X, fmt="%f"
-                )
-                np.savetxt(
-                    save_path + dataName + "_CellBRF_balance_data_label.txt",
-                    tmp_lab,
-                    fmt="%d",
-                )
+        if save_full and balanced:
+            np.savetxt(
+                save_path + dataName + "_CellBRF_balance_data.txt", tmp_X, fmt="%f"
+            )
+            np.savetxt(
+                save_path + dataName + "_CellBRF_balance_data_label.txt",
+                tmp_lab,
+                fmt="%d",
+            )
         np.savetxt(
             save_path + dataName + "_CellBRF_filtered_res.txt", X_selected, fmt="%f"
         )

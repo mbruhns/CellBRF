@@ -6,7 +6,7 @@ requires-python = ">=3.7"
 
 
 authors = [
-  {name = " Yunpei Xu", email = "TODO"}
+  {name = " Yunpei Xu", email = "xu_yunpei@csu.edu.cn"}
 ]
 
 maintainers = [
